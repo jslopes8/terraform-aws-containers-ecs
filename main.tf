@@ -97,7 +97,8 @@ resource "aws_ecs_task_definition" "main" {
     memory  = lookup(var.task_definition[count.index], "memory", null)
 
     task_role_arn       = aws_iam_role.main.0.arn
-    execution_role_arn  = lookup(var.task_definition[count.index], "execution_role_arn", null)
+    execution_role_arn  = aws_iam_role.main.0.arn
+    #execution_role_arn  = lookup(var.task_definition[count.index], "execution_role_arn", null)
     network_mode        = lookup(var.task_definition[count.index], "network_mode", null)
 
     tags = var.default_tags
@@ -258,4 +259,70 @@ resource "aws_lb_target_group" "main" {
     protocol        = lookup(var.service_load_balancing[count.index], "protocol", null)
     target_type     = lookup(var.service_load_balancing[count.index], "target_type", null)
     vpc_id          = lookup(var.service_load_balancing[count.index], "vpc_id", null)
+}
+
+## Support HTTPS
+
+resource "aws_appautoscaling_target" "main" {
+    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing_https) == 1 ? length(var.service_auto_scaling) : 0
+
+    max_capacity       = lookup(var.service_auto_scaling[count.index], "max_capacity", null)
+    min_capacity       = lookup(var.service_auto_scaling[count.index], "min_capacity", null)
+    resource_id        = "service/${var.cluster_name}/${aws_ecs_service.main.0.name}"
+    scalable_dimension = "ecs:service:DesiredCount"
+    service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "ecs_policy" {
+    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing_https) == 1 ? length(var.service_auto_scaling) : 0
+
+    name               = "${aws_ecs_service.main.0.name}-CPUAutoScaling"
+    policy_type        = lookup(var.service_auto_scaling[count.index], "policy_type", null)
+    resource_id        = aws_appautoscaling_target.main.0.resource_id
+    scalable_dimension = aws_appautoscaling_target.main.0.scalable_dimension
+    service_namespace  = aws_appautoscaling_target.main.0.service_namespace
+
+    target_tracking_scaling_policy_configuration {
+        predefined_metric_specification {
+            predefined_metric_type = lookup(var.service_auto_scaling[count.index], "metric_type", null) 
+        }
+
+        target_value       = lookup(var.service_auto_scaling[count.index], "target_value", null)
+        scale_in_cooldown  = lookup(var.service_auto_scaling[count.index], "scale_in_cooldown", "300")
+        scale_out_cooldown = lookup(var.service_auto_scaling[count.index], "scale_out_cooldown", "300")
+    }
+}
+
+resource "aws_lb" "https_listeners" {
+    count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing_https) : 0
+
+    name               = lookup(var.service_load_balancing_https[count.index], "name", null) 
+    internal           = lookup(var.service_load_balancing_https[count.index], "internal", null)
+    load_balancer_type = lookup(var.service_load_balancing_https[count.index], "load_balancer_type", "application")
+    security_groups    = [ aws_security_group.main.0.id ]
+    subnets            = lookup(var.service_load_balancing_https[count.index], "subnets", null)
+}
+resource "aws_alb_listener" "https_listeners" {
+    count = var.create_lb ? length(var.service_load_balancing_https) : 0
+
+    load_balancer_arn = aws_lb.https_listeners.0.arn
+
+    port            = lookup(var.service_load_balancing_https[count.index], "port", null)
+    protocol        = lookup(var.service_load_balancing_https[count.index], "protocol", null)
+    certificate_arn = var.service_load_balancing_https[count.index]["certificate_arn"]
+    ssl_policy      = lookup(var.service_load_balancing_https[count.index], "ssl_policy", "ELBSecurityPolicy-2016-08")
+
+    default_action {
+        target_group_arn = aws_lb_target_group.https_listeners.0.arn
+        type             = "forward"
+    }
+}
+resource "aws_lb_target_group" "https_listeners" {
+    count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing_https) : 0
+
+    name            = lookup(var.service_load_balancing_https[count.index], "name", null)
+    port            = lookup(var.service_load_balancing_https[count.index], "port", null)
+    protocol        = lookup(var.service_load_balancing_https[count.index], "protocol", null)
+    target_type     = lookup(var.service_load_balancing_https[count.index], "target_type", null)
+    vpc_id          = lookup(var.service_load_balancing_https[count.index], "vpc_id", null)
 }
