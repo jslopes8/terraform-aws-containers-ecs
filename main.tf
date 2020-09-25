@@ -201,7 +201,7 @@ resource "aws_security_group_rule" "egress" {
 
 # Service Auto Scaling
 resource "aws_appautoscaling_target" "main" {
-    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing) == 1 ? length(var.service_auto_scaling) : 0
+    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing) == 1 || length(var.service_load_balancing_https) == 1 ? length(var.service_auto_scaling) : 0
 
     max_capacity       = lookup(var.service_auto_scaling[count.index], "max_capacity", null)
     min_capacity       = lookup(var.service_auto_scaling[count.index], "min_capacity", null)
@@ -211,7 +211,7 @@ resource "aws_appautoscaling_target" "main" {
 }
 
 resource "aws_appautoscaling_policy" "ecs_policy" {
-    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing) == 1 ? length(var.service_auto_scaling) : 0
+    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing) == 1 || length(var.service_load_balancing_https) == 1 ? length(var.service_auto_scaling) : 0
 
     name               = "${aws_ecs_service.main.0.name}-CPUAutoScaling"
     policy_type        = lookup(var.service_auto_scaling[count.index], "policy_type", null)
@@ -263,35 +263,35 @@ resource "aws_lb_target_group" "main" {
 
 ## Support HTTPS
 
-resource "aws_appautoscaling_target" "main" {
-    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing_https) == 1 ? length(var.service_auto_scaling) : 0
-
-    max_capacity       = lookup(var.service_auto_scaling[count.index], "max_capacity", null)
-    min_capacity       = lookup(var.service_auto_scaling[count.index], "min_capacity", null)
-    resource_id        = "service/${var.cluster_name}/${aws_ecs_service.main.0.name}"
-    scalable_dimension = "ecs:service:DesiredCount"
-    service_namespace  = "ecs"
-}
-
-resource "aws_appautoscaling_policy" "ecs_policy" {
-    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing_https) == 1 ? length(var.service_auto_scaling) : 0
-
-    name               = "${aws_ecs_service.main.0.name}-CPUAutoScaling"
-    policy_type        = lookup(var.service_auto_scaling[count.index], "policy_type", null)
-    resource_id        = aws_appautoscaling_target.main.0.resource_id
-    scalable_dimension = aws_appautoscaling_target.main.0.scalable_dimension
-    service_namespace  = aws_appautoscaling_target.main.0.service_namespace
-
-    target_tracking_scaling_policy_configuration {
-        predefined_metric_specification {
-            predefined_metric_type = lookup(var.service_auto_scaling[count.index], "metric_type", null) 
-        }
-
-        target_value       = lookup(var.service_auto_scaling[count.index], "target_value", null)
-        scale_in_cooldown  = lookup(var.service_auto_scaling[count.index], "scale_in_cooldown", "300")
-        scale_out_cooldown = lookup(var.service_auto_scaling[count.index], "scale_out_cooldown", "300")
-    }
-}
+#resource "aws_appautoscaling_target" "main" {
+#    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing_https) == 1 ? length(var.service_auto_scaling) : 0
+#
+#    max_capacity       = lookup(var.service_auto_scaling[count.index], "max_capacity", null)
+#    min_capacity       = lookup(var.service_auto_scaling[count.index], "min_capacity", null)
+#    resource_id        = "service/${var.cluster_name}/${aws_ecs_service.main.0.name}"
+#    scalable_dimension = "ecs:service:DesiredCount"
+#    service_namespace  = "ecs"
+#}
+#
+#resource "aws_appautoscaling_policy" "ecs_policy" {
+#    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing_https) == 1 ? length(var.service_auto_scaling) : 0
+#
+#    name               = "${aws_ecs_service.main.0.name}-CPUAutoScaling"
+#    policy_type        = lookup(var.service_auto_scaling[count.index], "policy_type", null)
+#    resource_id        = aws_appautoscaling_target.main.0.resource_id
+#    scalable_dimension = aws_appautoscaling_target.main.0.scalable_dimension
+#    service_namespace  = aws_appautoscaling_target.main.0.service_namespace
+#
+#    target_tracking_scaling_policy_configuration {
+#        predefined_metric_specification {
+#            predefined_metric_type = lookup(var.service_auto_scaling[count.index], "metric_type", null) 
+#        }
+#
+#        target_value       = lookup(var.service_auto_scaling[count.index], "target_value", null)
+#        scale_in_cooldown  = lookup(var.service_auto_scaling[count.index], "scale_in_cooldown", "300")
+#        scale_out_cooldown = lookup(var.service_auto_scaling[count.index], "scale_out_cooldown", "300")
+#    }
+#}
 
 resource "aws_lb" "https_listeners" {
     count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing_https) : 0
