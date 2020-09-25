@@ -50,3 +50,7 @@ variable "service_load_balancing" {
     type = any 
     default = []
 }
+variable "service_load_balancing_https" {
+    type = any 
+    default = []
+}
