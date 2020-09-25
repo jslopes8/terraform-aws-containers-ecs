@@ -1,7 +1,7 @@
 resource "aws_iam_role" "main" {
     count = var.create && var.cluster_type == "FARGATE" ? length(var.task_definition) : 0
 
-    name               = "ecs-${var.cluster_name}-role"
+    name               = "${var.cluster_name}-role"
     assume_role_policy = data.aws_iam_policy_document.main.0.json
     path               = var.path
     description        = var.description
@@ -28,7 +28,7 @@ data "aws_iam_policy" "main" {
 resource "aws_iam_policy" "main" {
     count = var.create && var.cluster_type == "FARGATE" ? length(var.task_definition) : 0
 
-    name        = "ecs-${var.cluster_name}-role-policy"
+    name        = "${var.cluster_name}-task-definition"
     policy      = data.aws_iam_policy.main.0.policy
     path        = var.path
     description = var.description
@@ -98,7 +98,6 @@ resource "aws_ecs_task_definition" "main" {
 
     task_role_arn       = aws_iam_role.main.0.arn
     execution_role_arn  = aws_iam_role.main.0.arn
-    #execution_role_arn  = lookup(var.task_definition[count.index], "execution_role_arn", null)
     network_mode        = lookup(var.task_definition[count.index], "network_mode", null)
 
     tags = var.default_tags
