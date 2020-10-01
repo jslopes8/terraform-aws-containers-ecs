@@ -11,6 +11,14 @@
           "containerPort": ${container_port},
           "hostPort": ${host_port}
         }
-      ]
-    }
+      ],
+      "logConfiguration":{
+        "logDriver": "${log_driver}",
+        "options": {
+          "awslogs-group": "${awslogs_group}",
+          "awslogs-region": "${awslogs_region}",
+          "awslogs-stream-prefix": "${awslogs_stream_prefix}"
+        }
+      }
+    } 
 ]

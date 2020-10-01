@@ -69,14 +69,20 @@ data "template_file" "container" {
 
     template = "${file("${path.module}/template.json")}"
     vars = {
-        container_name  = lookup(var.task_definition[count.index], "container_name", null)
-        image           = lookup(var.task_definition[count.index], "image", null)
-        container_port  = lookup(var.task_definition[count.index], "container_port", null)
-        host_port       = lookup(var.task_definition[count.index], "host_port", null)
-        network_mode    = lookup(var.task_definition[count.index], "network_mode", null)
-        container_cpu    = lookup(var.task_definition[count.index], "container_cpu", null)
-        container_memory = lookup(var.task_definition[count.index], "container_memory", null)
-        essential       = lookup(var.task_definition[count.index], "essential", null)
+        container_name      = lookup(var.task_definition[count.index], "container_name", null)
+        image               = lookup(var.task_definition[count.index], "image", null)
+        container_port      = lookup(var.task_definition[count.index], "container_port", null)
+        host_port           = lookup(var.task_definition[count.index], "host_port", null)
+        network_mode        = lookup(var.task_definition[count.index], "network_mode", null)
+        container_cpu       = lookup(var.task_definition[count.index], "container_cpu", null)
+        container_memory    = lookup(var.task_definition[count.index], "container_memory", null)
+        essential           = lookup(var.task_definition[count.index], "essential", null)
+
+        #LogDriver
+        log_driver  = lookup(var.task_definition[count.index], "log_driver", null)
+        awslogs_group  = lookup(var.task_definition[count.index], "awslogs_group", null)
+        awslogs_region  = lookup(var.task_definition[count.index], "awslogs_region", null)
+        awslogs_stream_prefix  = lookup(var.task_definition[count.index], "awslogs_stream_prefix", null)
   }
 }
 #####################################
@@ -360,4 +366,15 @@ resource "aws_lb_target_group" "https_listeners" {
     protocol        = lookup(var.service_load_balancing_https[count.index], "protocol", null)
     target_type     = lookup(var.service_load_balancing_https[count.index], "target_type", null)
     vpc_id          = lookup(var.service_load_balancing_https[count.index], "vpc_id", null)
+}
+
+### Logs
+
+resource "aws_cloudwatch_log_group" "main" {
+    count = var.create ? length(var.log_driver) : 0
+
+    name                = lookup(var.log_driver[count.index], "log_name", null)
+    retention_in_days   = lookup(var.log_driver[count.index], "retention_in_days", null)
+
+    tags = lookup(var.log_driver[count.index], "default_tags", var.default_tags)
 }

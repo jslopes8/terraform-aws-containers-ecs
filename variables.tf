@@ -54,3 +54,7 @@ variable "service_load_balancing_https" {
     type = any 
     default = []
 }
+variable "log_driver" {
+    type = any
+    default = []
+}
