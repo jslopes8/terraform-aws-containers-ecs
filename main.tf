@@ -207,7 +207,7 @@ resource "aws_ecs_service" "https_listeners" {
     }
 
     lifecycle {
-        ignore_changes = [ desired_count ]
+        ignore_changes = [ desired_count, task_definition ]
     }
     #tags    = var.default_tags
 }
