@@ -215,9 +215,14 @@ resource "aws_ecs_service" "https_listeners" {
 resource "aws_security_group" "main" {
     count = var.create && var.cluster_type == "FARGATE" ? length(var.service) : 0
 
-    name    = lookup(var.service[count.index], "name_service", null)
+    name    = lookup(var.service[count.index], "security_group_mame", null)
     vpc_id  = lookup(var.service[count.index], "vpc_id", null)
-    tags    = var.default_tags
+    tags    = merge(
+        {
+            Name = lookup(var.service[count.index], "security_group_mame", null)
+        },
+        var.default_tags
+    )
 }
 resource "aws_security_group_rule" "ingress" {
     count = var.create && var.cluster_type == "FARGATE" ? length(var.service) : 0
@@ -226,7 +231,7 @@ resource "aws_security_group_rule" "ingress" {
   from_port         = lookup(var.service[count.index], "security_group_container_port", null)
   to_port           = lookup(var.service[count.index], "security_group_container_port", null)
   protocol          = "tcp"
-  cidr_blocks       = [ "0.0.0.0/0" ]
+  cidr_blocks       = lookup(var.service[count.index], "security_group_cidr_blocks", null)
   security_group_id = aws_security_group.main.0.id
 }
 resource "aws_security_group_rule" "egress" {
@@ -271,13 +276,47 @@ resource "aws_appautoscaling_policy" "ecs_policy" {
     }
 }
 
+## Load Balance
+resource "aws_security_group" "lb" {
+    count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
+
+    name    = lookup(var.service_load_balancing[count.index], "security_group_mame", null)
+    vpc_id  = lookup(var.service_load_balancing[count.index], "vpc_id", null)
+    tags    = merge(
+        {
+            Name = lookup(var.service_load_balancing[count.index], "security_group_mame", null)
+        },
+        var.default_tags
+    )
+}
+resource "aws_security_group_rule" "lb_ingress" {
+    count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
+
+  type              = "ingress"
+  from_port         = lookup(var.service_load_balancing[count.index], "security_group_lb_port", null)
+  to_port           = lookup(var.service_load_balancing[count.index], "security_group_lb_port", null)
+  protocol          = "tcp"
+  cidr_blocks       = lookup(var.service_load_balancing[count.index], "security_group_cidr_blocks", null)
+  security_group_id = aws_security_group.lb.0.id
+}
+resource "aws_security_group_rule" "lb_egress" {
+    count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
+
+    type              = "egress"
+    from_port         = 0
+    to_port           = 0
+    protocol          = "-1"
+    cidr_blocks       = [ "0.0.0.0/0" ]
+    security_group_id = aws_security_group.lb.0.id
+}
+
 resource "aws_lb" "main" {
     count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
 
     name               = lookup(var.service_load_balancing[count.index], "name", null) 
     internal           = lookup(var.service_load_balancing[count.index], "internal", null)
     load_balancer_type = lookup(var.service_load_balancing[count.index], "load_balancer_type", "application")
-    security_groups    = [ aws_security_group.main.0.id ]
+    security_groups    = [ aws_security_group.lb.0.id ]
     subnets            = lookup(var.service_load_balancing[count.index], "subnets", null)
 }
 resource "aws_lb_listener" "main" {
