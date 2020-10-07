@@ -339,6 +339,15 @@ resource "aws_lb_target_group" "main" {
     protocol        = lookup(var.service_load_balancing[count.index], "protocol", null)
     target_type     = lookup(var.service_load_balancing[count.index], "target_type", null)
     vpc_id          = lookup(var.service_load_balancing[count.index], "vpc_id", null)
+
+    health_check {
+        healthy_threshold   = lookup(var.service_load_balancing[count.index], "healthy_threshold", null)
+        unhealthy_threshold = lookup(var.service_load_balancing[count.index], "unhealthy_threshold", null)
+        timeout             = lookup(var.service_load_balancing[count.index], "timeout", null) 
+        interval            = lookup(var.service_load_balancing[count.index], "interval", null)
+        path                = lookup(var.service_load_balancing[count.index], "path", null)
+        port                = lookup(var.service_load_balancing[count.index], "port", null)
+    }
 }
 
 ## Support HTTPS
@@ -405,6 +414,15 @@ resource "aws_lb_target_group" "https_listeners" {
     protocol        = lookup(var.service_load_balancing_https[count.index], "protocol", null)
     target_type     = lookup(var.service_load_balancing_https[count.index], "target_type", null)
     vpc_id          = lookup(var.service_load_balancing_https[count.index], "vpc_id", null)
+
+    health_check {
+        healthy_threshold   = lookup(var.service_load_balancing_https[count.index], "healthy_threshold", null)
+        unhealthy_threshold = lookup(var.service_load_balancing_https[count.index], "unhealthy_threshold", null)
+        timeout             = lookup(var.service_load_balancing_https[count.index], "timeout", null) 
+        interval            = lookup(var.service_load_balancing_https[count.index], "interval", null)
+        path                = lookup(var.service_load_balancing_https[count.index], "path", null)
+        port                = lookup(var.service_load_balancing_https[count.index], "port", null)
+    }
 }
 
 ### Logs
