@@ -346,9 +346,11 @@ resource "aws_lb_target_group" "main" {
         timeout             = lookup(var.service_load_balancing[count.index], "timeout", null) 
         interval            = lookup(var.service_load_balancing[count.index], "interval", null)
         path                = lookup(var.service_load_balancing[count.index], "path", null)
-        port                = lookup(var.service_load_balancing[count.index], "port", null)
+        port                = lookup(var.service_load_balancing[count.index], "health_check_port", "traffic-port")
         matcher             = lookup(var.service_load_balancing[count.index], "success_codes", null)
     }
+
+    tags = var.default_tags
 }
 
 ## Support HTTPS
