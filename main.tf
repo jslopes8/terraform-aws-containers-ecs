@@ -347,6 +347,7 @@ resource "aws_lb_target_group" "main" {
         interval            = lookup(var.service_load_balancing[count.index], "interval", null)
         path                = lookup(var.service_load_balancing[count.index], "path", null)
         port                = lookup(var.service_load_balancing[count.index], "port", null)
+        matcher             = lookup(var.service_load_balancing[count.index], "success_codes", null)
     }
 }
 
