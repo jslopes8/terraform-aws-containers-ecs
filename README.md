@@ -1,10 +1,12 @@
 # Terraform AWS Cluster ECS
 
+Atualmente este module tem suporte para iniciar cluster em Fargate.
+
 ## Usage
 Exemplo de uso do modulo.
 ```hcl
 module "cluster_ecs" {
-    source = "git@github.com:jslopes8/terraform-aws-containers-ecs.git?ref=v2.2"
+    source = "git@github.com:jslopes8/terraform-aws-containers-ecs.git?ref=v2.3.2"
 
     cluster_name = "cluster-demo-php"
     cluster_type = "FARGATE"
@@ -19,7 +21,7 @@ module "cluster_ecs" {
 
             #add container
             container_name      = "demo-php"
-            image               = "demo-php:latesr"
+            image               = "demo-php:latest"
             container_cpu       = "256"
             container_memory    = "512"
             container_port      = "80"
@@ -89,9 +91,6 @@ module "cluster_ecs" {
             target_type = "ip"
             port        = "80"
             protocol    = "HTTP"
-
-            #certificate_arn = data.aws_acm_certificate.ssl.arn
-            #ssl_policy      = "ELBSecurityPolicy-2016-08"
             
             vpc_id      = "vpc-00000"
             subnets     = [ 
@@ -124,23 +123,22 @@ module "cluster_ecs" {
 
 O bloco task_definition quando usado, é esperado os seguintes argumentos;
 
- - family - Um nome exclusivo para criar uma task definition
- - requires_compatibilities - O tipo de inicialização exigidos pela task. Valores validos; FARGATE e EC2.
- - cpu - O numero de cpu usada pela task.
- - memory - O numero de memoria em MiB usada pela task.
- - network_mode - O modo de rede Docker a ser usado para o container na task. Valor valido para cluster type Fargate; `awsvpc`.  
- - container_name - O nome do container.
- - image - O docker image a ser usado pelo container
- - container_port - A porta do container.
- - host_port - A porta do host para o container.
- - container_cpu - 
- - container_memory - 
- - essential - 
- - log_driver - 
- - awslogs_group - 
- - awslogs_region - 
- - awslogs_stream_prefix - 
-
+ - `family` - Um nome exclusivo para criar uma task definition
+ - `requires_compatibilities` - O tipo de inicialização exigidos pela task. Valores validos; 'FARGATE' e 'EC2'.
+ - `cpu` - O numero de cpu usada pela task.
+ - `memory` - O numero de memoria em MiB usada pela task.
+ - `network_mode` - O modo de rede Docker a ser usado para o container na task. Valor valido para cluster type Fargate; `awsvpc`.  
+ - `container_name` - O nome do container.
+ - `image` - O docker image a ser usado pelo container
+ - `container_port` - A porta do container.
+ - `host_port` - A porta do host para o container.
+ - `container_cpu` - 
+ - `container_memory` - 
+ - `essential` - 
+ - `log_driver` - 
+ - `awslogs_group` - 
+ - `awslogs_region` - 
+ - `awslogs_stream_prefix` - 
 
 
  
@@ -148,6 +146,3 @@ O bloco task_definition quando usado, é esperado os seguintes argumentos;
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 | Name | Description |
 | ---- | ----------- |
-| api_server | The endpoint for your Kubernetes API server. |
-| kubeconfig_cert_data | The base64 encoded certificate data required to communicate with your cluster. |
-| kubeconfig_path | The path of the kubeconfig files. |
