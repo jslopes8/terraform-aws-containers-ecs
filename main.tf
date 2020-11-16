@@ -349,15 +349,29 @@ resource "aws_lb_target_group" "main" {
     target_type     = lookup(var.service_load_balancing[count.index], "target_type", null)
     vpc_id          = lookup(var.service_load_balancing[count.index], "vpc_id", null)
 
-    health_check {
-        healthy_threshold   = lookup(var.service_load_balancing[count.index], "healthy_threshold", null)
-        unhealthy_threshold = lookup(var.service_load_balancing[count.index], "unhealthy_threshold", null)
-        timeout             = lookup(var.service_load_balancing[count.index], "timeout", null) 
-        interval            = lookup(var.service_load_balancing[count.index], "interval", null)
-        path                = lookup(var.service_load_balancing[count.index], "path", null)
-        port                = lookup(var.service_load_balancing[count.index], "health_check_port", "traffic-port")
-        matcher             = lookup(var.service_load_balancing[count.index], "success_codes", null)
+
+    dynamic "health_check" {
+        for_each = length(keys(lookup(var.service_load_balancing[count.index], "health_check", {}))) == 0 ? [] : [lookup(var.service_load_balancing[count.index], "health_check", {})]
+        content {
+            healthy_threshold   = lookup(health_check.value, "healthy_threshold", null)
+            unhealthy_threshold = lookup(health_check.value, "unhealthy_threshold", null)
+            timeout             = lookup(health_check.value, "timeout", null)
+            interval            = lookup(health_check.value, "interval", null)
+            path                = lookup(health_check.value, "path", null)
+            port                = lookup(health_check.value, "health_check_port", "traffic-port")
+            matcher             = lookup(health_check.value, "success_codes", null)
+        }
     }
+
+    #health_check {
+    #    healthy_threshold   = lookup(var.service_load_balancing[count.index], "healthy_threshold", null)
+    #    unhealthy_threshold = lookup(var.service_load_balancing[count.index], "unhealthy_threshold", null)
+    #    timeout             = lookup(var.service_load_balancing[count.index], "timeout", null) 
+    #    interval            = lookup(var.service_load_balancing[count.index], "interval", null)
+    #    path                = lookup(var.service_load_balancing[count.index], "path", null)
+    #    port                = lookup(var.service_load_balancing[count.index], "health_check_port", "traffic-port")
+    #    matcher             = lookup(var.service_load_balancing[count.index], "success_codes", null)
+    #}
 
     tags = var.default_tags
 }
