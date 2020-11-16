@@ -113,7 +113,7 @@ resource "aws_ecs_task_definition" "main" {
 resource "aws_ecs_service" "without_alb" {
     depends_on = [ aws_iam_role.main, aws_ecs_task_definition.main ]
     
-    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing) == 0 && length(var.service_load_balancing_https) == 0 ? length(var.service) : 0
+    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing) == 0 ? length(var.service) : 0
 
     cluster         = aws_ecs_cluster.main.0.id
     task_definition = element(aws_ecs_task_definition.main.*.arn, count.index)
@@ -172,42 +172,6 @@ resource "aws_ecs_service" "main" {
 
     lifecycle {
         ignore_changes = [ desired_count ]
-    }
-    #tags    = var.default_tags
-}
-
-resource "aws_ecs_service" "https_listeners" {
-    depends_on = [ aws_ecs_task_definition.main, aws_lb_target_group.https_listeners, aws_lb.https_listeners ]
-    
-    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing_https) == 1 ? length(var.service) : 0
-
-    cluster         = aws_ecs_cluster.main.0.id
-    task_definition = element(aws_ecs_task_definition.main.*.arn, count.index)
-
-    name                = lookup(var.service[count.index], "name_service", null)
-    launch_type         = lookup(var.service[count.index], "launch_type", null)
-    desired_count       = lookup(var.service[count.index], "desired_count", null)
-    platform_version    = lookup(var.service[count.index], "platform_version", null)
-    scheduling_strategy = lookup(var.service[count.index], "scheduling_strategy", null)
-
-    deployment_controller {
-        type = lookup(var.service[count.index], "deployment_controller_type", null)
-    }
-
-    load_balancer {
-        target_group_arn    = aws_lb_target_group.https_listeners.0.arn
-        container_name      = lookup(var.service[count.index], "container_name", null)
-        container_port      = lookup(var.service[count.index], "container_port", null)
-    }
-
-    network_configuration {
-        subnets             = lookup(var.service[count.index], "subnets", null)
-        assign_public_ip    = lookup(var.service[count.index], "assign_public_ip", null)
-        security_groups     = [ aws_security_group.main.0.id ]
-    }
-
-    lifecycle {
-        ignore_changes = [ desired_count, task_definition ]
     }
     #tags    = var.default_tags
 }
@@ -280,21 +244,31 @@ resource "aws_appautoscaling_policy" "ecs_policy" {
 resource "aws_security_group" "lb" {
     count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
 
-    name    = lookup(var.service_load_balancing[count.index], "security_group_mame", null)
+    name    = lookup(var.service_load_balancing[count.index], "mame", null)
     vpc_id  = lookup(var.service_load_balancing[count.index], "vpc_id", null)
     tags    = merge(
         {
-            Name = lookup(var.service_load_balancing[count.index], "security_group_mame", null)
+            Name = lookup(var.service_load_balancing[count.index], "name", null)
         },
         var.default_tags
     )
+}
+resource "aws_security_group_rule" "target_ingress" {
+    count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
+
+  type              = "ingress"
+  from_port         = lookup(var.service_load_balancing[count.index], "target_port", null)
+  to_port           = lookup(var.service_load_balancing[count.index], "target_port", null)
+  protocol          = "tcp"
+  cidr_blocks       = lookup(var.service_load_balancing[count.index], "security_group_cidr_blocks", null)
+  security_group_id = aws_security_group.lb.0.id
 }
 resource "aws_security_group_rule" "lb_ingress" {
     count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
 
   type              = "ingress"
-  from_port         = lookup(var.service_load_balancing[count.index], "security_group_lb_port", null)
-  to_port           = lookup(var.service_load_balancing[count.index], "security_group_lb_port", null)
+  from_port         = lookup(var.service_load_balancing[count.index], "port", null)
+  to_port           = lookup(var.service_load_balancing[count.index], "port", null)
   protocol          = "tcp"
   cidr_blocks       = lookup(var.service_load_balancing[count.index], "security_group_cidr_blocks", null)
   security_group_id = aws_security_group.lb.0.id
@@ -319,24 +293,59 @@ resource "aws_lb" "main" {
     security_groups    = [ aws_security_group.lb.0.id ]
     subnets            = lookup(var.service_load_balancing[count.index], "subnets", null)
 }
-resource "aws_lb_listener" "main" {
+resource "aws_lb_listener" "listerner0" {
     count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
 
-    load_balancer_arn = aws_lb.main.0.arn
-    port              = lookup(var.service_load_balancing[count.index], "port", null)
-    protocol          = lookup(var.service_load_balancing[count.index], "protocol", null)
+    load_balancer_arn   = aws_lb.main.0.arn
+    port                = lookup(var.service_load_balancing[count.index], "port", null)
+    protocol            = lookup(var.service_load_balancing[count.index], "protocol", null)
+    certificate_arn     = lookup(var.service_load_balancing[count.index], "certificate_arn", null)
+    ssl_policy          = lookup(var.service_load_balancing[count.index], "ssl_policy", null)
+
 
     default_action {
         type             = "forward"
         target_group_arn = aws_lb_target_group.main.0.arn
     }
 }
+resource "aws_lb_listener" "listerner1" {
+    count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
+
+    load_balancer_arn   = aws_lb.main.0.arn
+    port                = lookup(var.service_load_balancing[count.index], "target_port", null)
+    protocol            = lookup(var.service_load_balancing[count.index], "target_protocol", null)
+
+    default_action {
+        type             = "forward"
+        target_group_arn = aws_lb_target_group.main.0.arn
+    }
+}
+resource "aws_lb_listener_rule" "listerner1" {
+    count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
+
+    listener_arn = aws_lb_listener.listerner1.0.arn
+
+    action {
+        type = "redirect"
+
+        redirect {
+            port        = "443"
+            protocol    = "HTTPS"
+            status_code = "HTTP_301"
+        }
+    }
+    condition {
+        path_pattern {
+            values = lookup(var.service_load_balancing[count.index], "path_pattern", null)
+        }
+    }
+}
 resource "aws_lb_target_group" "main" {
     count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
 
     name            = lookup(var.service_load_balancing[count.index], "name", null)
-    port            = lookup(var.service_load_balancing[count.index], "port", null)
-    protocol        = lookup(var.service_load_balancing[count.index], "protocol", null)
+    port            = lookup(var.service_load_balancing[count.index], "target_port", null)
+    protocol        = lookup(var.service_load_balancing[count.index], "target_protocol", null)
     target_type     = lookup(var.service_load_balancing[count.index], "target_type", null)
     vpc_id          = lookup(var.service_load_balancing[count.index], "vpc_id", null)
 
@@ -351,81 +360,6 @@ resource "aws_lb_target_group" "main" {
     }
 
     tags = var.default_tags
-}
-
-## Support HTTPS
-
-resource "aws_appautoscaling_target" "https_listeners" {
-    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing_https) == 1 ? length(var.service_auto_scaling) : 0
-
-    max_capacity       = lookup(var.service_auto_scaling[count.index], "max_capacity", null)
-    min_capacity       = lookup(var.service_auto_scaling[count.index], "min_capacity", null)
-    resource_id        = "service/${var.cluster_name}/${aws_ecs_service.https_listeners.0.name}"
-    scalable_dimension = "ecs:service:DesiredCount"
-    service_namespace  = "ecs"
-}
-
-resource "aws_appautoscaling_policy" "https_listeners" {
-    count = var.create && var.cluster_type == "FARGATE" && length(var.service_load_balancing_https) == 1 ? length(var.service_auto_scaling) : 0
-
-    name               = "${aws_ecs_service.https_listeners.0.name}-CPUAutoScaling"
-    policy_type        = lookup(var.service_auto_scaling[count.index], "policy_type", null)
-    resource_id        = aws_appautoscaling_target.https_listeners.0.resource_id
-    scalable_dimension = aws_appautoscaling_target.https_listeners.0.scalable_dimension
-    service_namespace  = aws_appautoscaling_target.https_listeners.0.service_namespace
-
-    target_tracking_scaling_policy_configuration {
-        predefined_metric_specification {
-            predefined_metric_type = lookup(var.service_auto_scaling[count.index], "metric_type", null) 
-        }
-
-        target_value       = lookup(var.service_auto_scaling[count.index], "target_value", null)
-        scale_in_cooldown  = lookup(var.service_auto_scaling[count.index], "scale_in_cooldown", "300")
-        scale_out_cooldown = lookup(var.service_auto_scaling[count.index], "scale_out_cooldown", "300")
-    }
-}
-
-resource "aws_lb" "https_listeners" {
-    count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing_https) : 0
-
-    name               = lookup(var.service_load_balancing_https[count.index], "name", null) 
-    internal           = lookup(var.service_load_balancing_https[count.index], "internal", null)
-    load_balancer_type = lookup(var.service_load_balancing_https[count.index], "load_balancer_type", "application")
-    security_groups    = [ aws_security_group.main.0.id ]
-    subnets            = lookup(var.service_load_balancing_https[count.index], "subnets", null)
-}
-resource "aws_alb_listener" "https_listeners" {
-    count = var.create ? length(var.service_load_balancing_https) : 0
-
-    load_balancer_arn = aws_lb.https_listeners.0.arn
-
-    port            = lookup(var.service_load_balancing_https[count.index], "port", null)
-    protocol        = lookup(var.service_load_balancing_https[count.index], "protocol", null)
-    certificate_arn = var.service_load_balancing_https[count.index]["certificate_arn"]
-    ssl_policy      = lookup(var.service_load_balancing_https[count.index], "ssl_policy", "ELBSecurityPolicy-2016-08")
-
-    default_action {
-        target_group_arn = aws_lb_target_group.https_listeners.0.arn
-        type             = "forward"
-    }
-}
-resource "aws_lb_target_group" "https_listeners" {
-    count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing_https) : 0
-
-    name            = lookup(var.service_load_balancing_https[count.index], "name", null)
-    port            = lookup(var.service_load_balancing_https[count.index], "port", null)
-    protocol        = lookup(var.service_load_balancing_https[count.index], "protocol", null)
-    target_type     = lookup(var.service_load_balancing_https[count.index], "target_type", null)
-    vpc_id          = lookup(var.service_load_balancing_https[count.index], "vpc_id", null)
-
-    health_check {
-        healthy_threshold   = lookup(var.service_load_balancing_https[count.index], "healthy_threshold", null)
-        unhealthy_threshold = lookup(var.service_load_balancing_https[count.index], "unhealthy_threshold", null)
-        timeout             = lookup(var.service_load_balancing_https[count.index], "timeout", null) 
-        interval            = lookup(var.service_load_balancing_https[count.index], "interval", null)
-        path                = lookup(var.service_load_balancing_https[count.index], "path", null)
-        port                = lookup(var.service_load_balancing_https[count.index], "port", null)
-    }
 }
 
 ### Logs
