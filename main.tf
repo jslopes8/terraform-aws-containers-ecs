@@ -244,7 +244,7 @@ resource "aws_appautoscaling_policy" "ecs_policy" {
 resource "aws_security_group" "lb" {
     count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
 
-    name    = lookup(var.service_load_balancing[count.index], "mame", null)
+    name    = lookup(var.service_load_balancing[count.index], "name", null)
     vpc_id  = lookup(var.service_load_balancing[count.index], "vpc_id", null)
     tags    = merge(
         {
@@ -292,6 +292,8 @@ resource "aws_lb" "main" {
     load_balancer_type = lookup(var.service_load_balancing[count.index], "load_balancer_type", "application")
     security_groups    = [ aws_security_group.lb.0.id ]
     subnets            = lookup(var.service_load_balancing[count.index], "subnets", null)
+
+    tags = var.default_tags
 }
 resource "aws_lb_listener" "listerner0" {
     count = var.create && var.cluster_type == "FARGATE" ? length(var.service_load_balancing) : 0
@@ -362,16 +364,6 @@ resource "aws_lb_target_group" "main" {
             matcher             = lookup(health_check.value, "success_codes", null)
         }
     }
-
-    #health_check {
-    #    healthy_threshold   = lookup(var.service_load_balancing[count.index], "healthy_threshold", null)
-    #    unhealthy_threshold = lookup(var.service_load_balancing[count.index], "unhealthy_threshold", null)
-    #    timeout             = lookup(var.service_load_balancing[count.index], "timeout", null) 
-    #    interval            = lookup(var.service_load_balancing[count.index], "interval", null)
-    #    path                = lookup(var.service_load_balancing[count.index], "path", null)
-    #    port                = lookup(var.service_load_balancing[count.index], "health_check_port", "traffic-port")
-    #    matcher             = lookup(var.service_load_balancing[count.index], "success_codes", null)
-    #}
 
     tags = var.default_tags
 }
