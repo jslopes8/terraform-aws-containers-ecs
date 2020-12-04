@@ -54,3 +54,7 @@ variable "log_driver" {
     type = any
     default = []
 }
+variable "cluster_resources" {
+    type = any
+    default = []
+}
