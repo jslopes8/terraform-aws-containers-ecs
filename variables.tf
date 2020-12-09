@@ -30,6 +30,10 @@ variable "path" {
     type = string 
     default = "/"
 }
+variable "priority" {
+    type = string
+    default = null
+}
 variable "default_tags" {
     type = map
     default = {}
@@ -56,5 +60,17 @@ variable "log_driver" {
 }
 variable "cluster_resources" {
     type = any
+    default = []
+}
+variable "placement_strategy" {
+    type    = any
+    default = []
+}
+variable "deployment_controller" {
+    type    = any
+    default = []
+}
+variable "placement_constraints" {
+    type    = any
     default = []
 }

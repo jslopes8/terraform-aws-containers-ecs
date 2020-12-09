@@ -24,14 +24,14 @@ resource "aws_ecs_service" "main" {
     deployment_maximum_percent          = lookup(var.service[count.index], "maximum_healthy_percent", "200")
 
     dynamic "deployment_controller" {
-        for_each = length(keys(lookup(var.service[count.index], "deployment_controller", {}))) == 0 ? [] : [lookup(var.service[count.index], "deployment_controller", {})]
+        for_each = lookup(var.service[count.index], "deployment_controller", var.deployment_controller)
         content {
-            type    = lookup(deployment_controller.value, "type", "ECS")
+            type    = lookup(deployment_controller.value, "type", null)
         }
     }
 
     dynamic "ordered_placement_strategy" {
-        for_each = length(keys(lookup(var.service[count.index], "placement_strategy", {}))) == 0 ? [] : [lookup(var.service[count.index], "placement_strategy", {})]
+        for_each = lookup(var.service[count.index], "placement_strategy", var.placement_strategy)
         content {
             type    = lookup(ordered_placement_strategy.value, "type", null)
             field   = lookup(ordered_placement_strategy.value, "field", null)
@@ -39,7 +39,7 @@ resource "aws_ecs_service" "main" {
     }
 
     dynamic "placement_constraints" {
-        for_each = length(keys(lookup(var.service[count.index], "placement_constraints", {}))) == 0 ? [] : [lookup(var.service[count.index], "placement_constraints", {})]
+        for_each = lookup(var.service[count.index], "placement_constraints", var.placement_constraints)
         content {
             type        = lookup(placement_constraints.value, "type", null)
             expression  = lookup(placement_constraints.value, "expression", null)
@@ -58,7 +58,7 @@ resource "aws_ecs_service" "main" {
     dynamic "load_balancer" {
         for_each = length(keys(lookup(var.service[count.index], "load_balancer", {}))) == 0 ? [] : [lookup(var.service[count.index], "load_balancer", {})]
         content {
-            target_group_arn    = lookup(load_balancer.value, "target_group_arn", aws_lb_target_group.main.0.arn)
+            target_group_arn    = aws_lb_target_group.main.0.arn
             container_name      = lookup(load_balancer.value, "container_name", null)
             container_port      = lookup(load_balancer.value, "container_port", null)
         }
@@ -74,7 +74,7 @@ resource "aws_ecs_service" "main" {
 #
 
 resource "aws_appautoscaling_target" "main" {
-    count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" && length(var.service_load_balancing) == 0 ? length(var.service_auto_scaling) : 0
+    count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service_auto_scaling) : 0
 
     max_capacity       = lookup(var.service_auto_scaling[count.index], "max_capacity", null)
     min_capacity       = lookup(var.service_auto_scaling[count.index], "min_capacity", null)
@@ -83,7 +83,7 @@ resource "aws_appautoscaling_target" "main" {
     service_namespace  = "ecs"
 }
 resource "aws_appautoscaling_policy" "ecs_policy" {
-    count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" && length(var.service_load_balancing) == 0 ? length(var.service_auto_scaling) : 0
+    count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service_auto_scaling) : 0
 
     name               = "${aws_ecs_service.main.0.name}-CPUAutoScaling"
     policy_type        = lookup(var.service_auto_scaling[count.index], "policy_type", null)
@@ -141,9 +141,10 @@ resource "aws_lb_listener" "listerner" {
 }
 
 resource "aws_lb_listener_rule" "listener_rule" {
-    count = var.create  && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service_load_balancing) : 0
+    count = var.create  && var.priority == 1 && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" &&  var.priority == 1 ? length(var.service_load_balancing) : 0
 
-    listener_arn = aws_lb_listener.listerner.0.arn
+    listener_arn    = aws_lb_listener.listerner.0.arn
+    priority        = lookup(var.service_load_balancing[count.index], "priority", var.priority)
 
     dynamic "action" {
         for_each = length(keys(lookup(var.service_load_balancing[count.index], "listerner_rule", {}))) == 0 ? [] : [lookup(var.service_load_balancing[count.index], "listerner_rule", {})]
