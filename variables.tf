@@ -74,3 +74,7 @@ variable "placement_constraints" {
     type    = any
     default = []
 }
+variable "container_definitions" {
+    type    = any
+    default = []
+}

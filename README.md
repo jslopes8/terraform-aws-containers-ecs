@@ -56,20 +56,38 @@ module "cluster_ecs" {
             cpu                         = "256"
             memory                      = "512"
 
-            #add container
-            container_name      = "demo-php"
-            image               = "demo-php:latest"
-            container_cpu       = "256"
-            container_memory    = "512"
-            container_port      = "80"
-            host_port           = "80"
-            essential           = "true"
-
-            #log driver
-            log_driver      = "awslogs"
-            awslogs_group   = "/ecs/svc-php-demo"
-            awslogs_region  = "us-east-1"
-            awslogs_stream_prefix = "ecs"
+            container_definitions   = <<EOF
+            [
+                {
+                    "name": "demo-php",
+                    "image": "nginx:latest",
+                    "networkMode": "awsvpc",
+                    "cpu": 10,
+                    "memory": 256,
+                    "essential": true,
+                    "portMappings": [
+                        {
+                            "containerPort": 80,
+                            "protocol": "tcp"
+                        }
+                    ],
+                    "environment": [
+                        {
+                            "name": "Env",
+                            "value": "Lab"
+                        }
+                    ],
+                    "logConfiguration": {
+                        "logDriver": "awslogs",
+                        "options": {
+                            "awslogs-group": "/ecs/svc-demo-php",
+                            "awslogs-region": "us-east-1",
+                            "awslogs-stream-prefix": "ecs"
+                        }
+                    }
+                }
+            ]
+            EOF
         }
     ]
 
@@ -99,7 +117,6 @@ module "cluster_ecs" {
         }
 
         load_balancer = {
-            target_group_arn    = local.target_group 
             container_name      = "demo-php"
             container_port      = "80"
         }
@@ -137,29 +154,3 @@ module "cluster_ecs" {
 | capacity_providers | Lista de um ou mais provedores de capacidade para associar ao cluster. Valores validos, FARGATE e FARGATE_SPOT. | `no` | `list` | `[ ]` |
 | default_capacity_provider_strategy | Capacity Provider Strategy para ser usado por default para o cluster. Segue detalhes abaixo.  | `no` | `list` | `[ ]` |
 
-
-O bloco task_definition quando usado, é esperado os seguintes argumentos;
-
- - `family` - Um nome exclusivo para criar uma task definition
- - `requires_compatibilities` - O tipo de inicialização exigidos pela task. Valores validos; 'FARGATE' e 'EC2'.
- - `cpu` - O numero de cpu usada pela task.
- - `memory` - O numero de memoria em MiB usada pela task.
- - `network_mode` - O modo de rede Docker a ser usado para o container na task. Valor valido para cluster type Fargate; `awsvpc`.  
- - `container_name` - O nome do container.
- - `image` - O docker image a ser usado pelo container
- - `container_port` - A porta do container.
- - `host_port` - A porta do host para o container.
- - `container_cpu` - 
- - `container_memory` - 
- - `essential` - 
- - `log_driver` - 
- - `awslogs_group` - 
- - `awslogs_region` - 
- - `awslogs_stream_prefix` - 
-
-
- 
-## Variable Outputs
-<!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
-| Name | Description |
-| ---- | ----------- |

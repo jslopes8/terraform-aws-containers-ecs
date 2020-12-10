@@ -54,32 +54,6 @@ resource "aws_iam_role_policy_attachment" "main" {
 }
 
 #
-# Task Definition - Template json
-#
-
-data "template_file" "container" {
-    count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.task_definition) : 0
-
-    template = file("${path.module}/template/container-definition.json")
-    vars = {
-        container_name      = lookup(var.task_definition[count.index], "container_name", null)
-        image               = lookup(var.task_definition[count.index], "image", null)
-        container_port      = lookup(var.task_definition[count.index], "container_port", null)
-        host_port           = lookup(var.task_definition[count.index], "host_port", null)
-        network_mode        = lookup(var.task_definition[count.index], "network_mode", null)
-        container_cpu       = lookup(var.task_definition[count.index], "container_cpu", null)
-        container_memory    = lookup(var.task_definition[count.index], "container_memory", null)
-        essential           = lookup(var.task_definition[count.index], "essential", null)
-
-        #LogDriver
-        log_driver  = lookup(var.task_definition[count.index], "log_driver", null)
-        awslogs_group  = lookup(var.task_definition[count.index], "awslogs_group", null)
-        awslogs_region  = lookup(var.task_definition[count.index], "awslogs_region", null)
-        awslogs_stream_prefix  = lookup(var.task_definition[count.index], "awslogs_stream_prefix", null)
-  }
-}
-
-#
 # ECS - Task Definition
 #
 
@@ -89,7 +63,8 @@ resource "aws_ecs_task_definition" "main" {
     count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.task_definition) : 0
 
     family                      = lookup(var.task_definition[count.index], "family", null)
-    container_definitions       = data.template_file.container.0.rendered
+    #container_definitions       = data.template_file.container.0.rendered
+    container_definitions       = lookup(var.task_definition[count.index], "container_definitions", var.container_definitions)
     requires_compatibilities    = lookup(var.task_definition[count.index], "requires_compatibilities", null)
 
     cpu     = lookup(var.task_definition[count.index], "cpu", null)
