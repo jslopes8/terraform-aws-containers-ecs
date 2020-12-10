@@ -3,43 +3,6 @@
 
 
 ## Usage
-Exemplo de uso: Criando um Cluster EC2 com EC2 Instance
-```hcl
-module "ecs" {
-    source = "git::https://github.com/jslopes8/terraform-aws-containers-ecs.git?ref=v3.0"
-
-    cluster_name = local.cluster_name
-    cluster_type = "EC2"
-
-    cluster_resources   = [{
-        image_id        = "ami-0128839b21d19300e"
-        instance_type   = "m5zn.large"
-
-        desired_capacity    = "2"
-        min_size            = "2"
-        max_size            = "8"
-        health_check_type           = "EC2"
-        health_check_grace_period   = "300"
-
-
-        vpc_zone_identifier = [
-            tolist(data.aws_subnet_ids.subnet_priv.ids)[0],
-            tolist(data.aws_subnet_ids.subnet_priv.ids)[1]
-        ]
-        security_groups = [  module.ecs_sec_group.id  ]
-
-        key_name        = "sshkey-name"
-        user_data       = data.template_file.user_data.rendered
-
-        volume_type             = "gp2"
-        volume_size             = "80"
-        delete_on_termination   = "true"
-    }]
-
- - - - omitindo saída - - - 
-}
-```
-
 Exemplo de uso: Criando um completo Cluster ECS Fargate
 ```hcl
 module "cluster_ecs" {
@@ -144,6 +107,44 @@ module "cluster_ecs" {
 }
 ``` 
 
+Exemplo de uso: Criando um Cluster EC2 com EC2 Instance
+```hcl
+module "ecs" {
+    source = "git::https://github.com/jslopes8/terraform-aws-containers-ecs.git?ref=v3.0"
+
+    cluster_name = local.cluster_name
+    cluster_type = "EC2"
+
+    cluster_resources   = [{
+        image_id        = "ami-0128839b21d19300e"
+        instance_type   = "m5zn.large"
+
+        desired_capacity    = "2"
+        min_size            = "2"
+        max_size            = "8"
+        health_check_type           = "EC2"
+        health_check_grace_period   = "300"
+
+
+        vpc_zone_identifier = [
+            tolist(data.aws_subnet_ids.subnet_priv.ids)[0],
+            tolist(data.aws_subnet_ids.subnet_priv.ids)[1]
+        ]
+        security_groups = [  module.ecs_sec_group.id  ]
+
+        key_name        = "sshkey-name"
+        user_data       = data.template_file.user_data.rendered
+
+        volume_type             = "gp2"
+        volume_size             = "80"
+        delete_on_termination   = "true"
+    }]
+
+ - - - omitindo saída - - -
+}
+```
+
+
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Variables Inputs
 | Name | Description | Required | Type | Default |
@@ -153,4 +154,4 @@ module "cluster_ecs" {
 | task_definition | O bloco task_definition é necessario para rodar containers Dockers em ECS. Segue detalhes abaixo. | `yes` | `list` | `[ ]` |
 | capacity_providers | Lista de um ou mais provedores de capacidade para associar ao cluster. Valores validos, FARGATE e FARGATE_SPOT. | `no` | `list` | `[ ]` |
 | default_capacity_provider_strategy | Capacity Provider Strategy para ser usado por default para o cluster. Segue detalhes abaixo.  | `no` | `list` | `[ ]` |
-
+| cluster_resources | Construção da EC2 Instance para o EC2 Cluster. Obrigatorio quando o valor de `cluster_type` for EC2. | `no` | `list` | `[ ]` |
