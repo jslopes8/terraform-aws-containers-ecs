@@ -5,8 +5,19 @@
 
 # ECS Service - Create a ECS services wihtout load balance
 
+resource "time_sleep" "wait_for_ec2_instances" {
+    count = var.create && var.cluster_type == "EC2" ? length(var.service) : 0
+
+    depends_on = [ aws_launch_configuration.ec2, aws_autoscaling_group.ec2  ]
+
+    create_duration = "30s"
+}
+
 resource "aws_ecs_service" "main" {
-    depends_on = [ aws_iam_role.main, aws_ecs_task_definition.main ]
+    depends_on = [ 
+        aws_iam_role.main, aws_ecs_task_definition.main, 
+        aws_lb.main, aws_lb_target_group.main
+    ]
 
     count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service) : 0
 
@@ -81,6 +92,8 @@ resource "aws_appautoscaling_target" "main" {
     resource_id        = "service/${var.cluster_name}/${aws_ecs_service.main.0.name}"
     scalable_dimension = "ecs:service:DesiredCount"
     service_namespace  = "ecs"
+
+    depends_on = [ aws_ecs_service.main ]
 }
 resource "aws_appautoscaling_policy" "ecs_policy" {
     count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service_auto_scaling) : 0
@@ -106,6 +119,7 @@ resource "aws_appautoscaling_policy" "ecs_policy" {
             }
         }
     }
+    depends_on = [ aws_ecs_service.main ]
 }
 
 #
@@ -122,6 +136,8 @@ resource "aws_lb" "main" {
     subnets            = lookup(var.service_load_balancing[count.index], "subnets", null)
 
     tags = var.default_tags
+
+    depends_on = [ aws_lb_target_group.main  ]
 }
 
 
@@ -138,6 +154,8 @@ resource "aws_lb_listener" "listerner" {
         type             = "forward"
         target_group_arn = aws_lb_target_group.main.0.arn
     }
+
+    depends_on = [ time_sleep.wait_for_ec2_instances, aws_lb_target_group.main     ]
 }
 
 resource "aws_lb_listener_rule" "listener_rule" {
@@ -173,6 +191,8 @@ resource "aws_lb_listener_rule" "listener_rule" {
             }
         }
     }
+
+    depends_on = [ aws_lb_target_group.main, aws_lb.main ]
 }
 
 resource "aws_lb_target_group" "main" {

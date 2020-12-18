@@ -49,7 +49,7 @@ data "template_file" "bootstrap" {
 
     template = file("${path.module}/template/bootstrap")
     vars = {
-        cluster_name = "${var.cluster_name}"
+        cluster_name = var.cluster_name
     }
 }
 
