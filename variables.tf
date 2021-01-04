@@ -32,7 +32,7 @@ variable "path" {
 }
 variable "priority" {
     type = string
-    default = null
+    default = "null"
 }
 variable "default_tags" {
     type = map

@@ -159,13 +159,13 @@ resource "aws_lb_listener" "listerner" {
 }
 
 resource "aws_lb_listener_rule" "listener_rule" {
-    count = var.create  && var.priority == 1 && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" &&  var.priority == 1 ? length(var.service_load_balancing) : 0
+    count = var.create  && var.priority != "null" && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" &&  var.priority != "null" ? length(var.service_load_balancing) : 0
 
     listener_arn    = aws_lb_listener.listerner.0.arn
     priority        = lookup(var.service_load_balancing[count.index], "priority", var.priority)
 
     dynamic "action" {
-        for_each = length(keys(lookup(var.service_load_balancing[count.index], "listerner_rule", {}))) == 0 ? [] : [lookup(var.service_load_balancing[count.index], "listerner_rule", {})]
+        for_each = length(keys(lookup(var.service_load_balancing[count.index], "redirect_rule", {}))) == 0 ? [] : [lookup(var.service_load_balancing[count.index], "redirect_rule", {})]
         content {
             type    = lookup(action.value, "type", null)
 
@@ -177,6 +177,16 @@ resource "aws_lb_listener_rule" "listener_rule" {
                     status_code = lookup(redirect.value, "status_code", "HTTP_301")
                 }
             }
+
+        }
+    }
+
+    dynamic "action" {
+        for_each = length(keys(lookup(var.service_load_balancing[count.index], "forward_rule", {}))) == 0 ? [] : [lookup(var.service_load_balancing[count.index], "forward_rule", {})]
+        content {
+            type                = lookup(action.value, "type", null)
+            target_group_arn    = aws_lb_target_group.main.0.arn
+
         }
     }
 

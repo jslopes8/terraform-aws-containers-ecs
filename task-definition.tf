@@ -63,7 +63,6 @@ resource "aws_ecs_task_definition" "main" {
     count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.task_definition) : 0
 
     family                      = lookup(var.task_definition[count.index], "family", null)
-    #container_definitions       = data.template_file.container.0.rendered
     container_definitions       = lookup(var.task_definition[count.index], "container_definitions", var.container_definitions)
     requires_compatibilities    = lookup(var.task_definition[count.index], "requires_compatibilities", null)
 
@@ -74,10 +73,20 @@ resource "aws_ecs_task_definition" "main" {
     execution_role_arn  = aws_iam_role.main.0.arn
     network_mode        = lookup(var.task_definition[count.index], "network_mode", null)
 
+    dynamic "volume" {
+        for_each = length(keys(lookup(task_definition.value, "volume", {}))) == 0 ? [] : [lookup(task_definition.value, "volume", {})]
+        content {
+            name        = lookup(volume.value, "name", null)
+            host_path   = lookup(volume.value, "host_path", null)
+        }
+    }
+
     tags = var.default_tags
 }
 
-# Log Group for Task definition
+#
+# CloudWatch Log Group for Task definition
+#
 
 resource "aws_cloudwatch_log_group" "main" {
     count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.log_driver) : 0
@@ -86,4 +95,6 @@ resource "aws_cloudwatch_log_group" "main" {
     retention_in_days   = lookup(var.log_driver[count.index], "retention_in_days", null)
 
     tags = lookup(var.log_driver[count.index], "default_tags", var.default_tags)
+
+    depends_on = [ aws_iam_role.main ]
 }
