@@ -74,10 +74,28 @@ resource "aws_ecs_task_definition" "main" {
     network_mode        = lookup(var.task_definition[count.index], "network_mode", null)
 
     dynamic "volume" {
-        for_each = length(keys(lookup(task_definition.value, "volume", {}))) == 0 ? [] : [lookup(task_definition.value, "volume", {})]
+        for_each = lookup(var.task_definition[count.index], "volume", {} )
         content {
             name        = lookup(volume.value, "name", null)
             host_path   = lookup(volume.value, "host_path", null)
+
+            dynamic "efs_volume_configuration" {
+                for_each = length(keys(lookup(volume.value, "efs_volume", {}))) == 0 ? [] : [lookup(volume.value, "efs_volume", {})]
+                content {
+                    file_system_id          = lookup(efs_volume_configuration.value, "file_system_id", null)
+                    root_directory          = lookup(efs_volume_configuration.value, "root_directory", null)
+                    transit_encryption      = lookup(efs_volume_configuration.value, "transit_encryption", null)
+                    transit_encryption_port = lookup(efs_volume_configuration.value, "transit_encryption_port", null)
+
+                    dynamic "authorization_config" {
+                        for_each = length(keys(lookup(efs_volume_configuration.value, "authorization_config", {}))) == 0 ? [] : [lookup(efs_volume_configuration.value, "authorization_config", {})]
+                        content {
+                            access_point_id = lookup(authorization_config.value, "access_point_id", null)
+                            iam             = lookup(authorization_config.value, "iam", null)
+                        }
+                    }
+                }
+            }
         }
     }
 
