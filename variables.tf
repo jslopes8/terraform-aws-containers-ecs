@@ -10,7 +10,7 @@ variable "cluster_name" {
     description = "O nome do cluster que deseja iniciar" 
     type = string
 }
-variable "capacity_providers" {
+variable "ecs_capacity_providers" {
     type = any
     default = []
 }
@@ -30,10 +30,6 @@ variable "path" {
     type = string 
     default = "/"
 }
-variable "priority" {
-    type = string
-    default = "null"
-}
 variable "default_tags" {
     type = map
     default = {}
@@ -51,6 +47,10 @@ variable "service_auto_scaling" {
     default = []
 }
 variable "service_load_balancing" {
+    type = any 
+    default = []
+}
+variable "service_load_balancing_https" {
     type = any 
     default = []
 }
@@ -76,5 +76,9 @@ variable "placement_constraints" {
 }
 variable "container_definitions" {
     type    = any
+    default = []
+}
+variable "capacity_provider" {
+    type = any
     default = []
 }

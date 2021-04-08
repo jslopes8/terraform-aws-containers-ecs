@@ -53,7 +53,6 @@ data "template_file" "bootstrap" {
     }
 }
 
-## Filter AMI
 resource "aws_launch_configuration" "ec2" {
     count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
 
@@ -85,6 +84,11 @@ resource "aws_launch_configuration" "ec2" {
     
     depends_on = [ aws_iam_role.ec2 ]
 }
+
+#
+# ASG
+#
+
 resource "aws_autoscaling_group" "ec2" {
     count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
 
@@ -104,6 +108,12 @@ resource "aws_autoscaling_group" "ec2" {
             "value"                 = "${var.cluster_name}-AS"
             "propagate_at_launch"   = true
          },
+         {
+            "key"                   = "AmazonECSManaged"
+            "value"                 = ""
+            "propagate_at_launch"   = true
+
+          }
         ]
     )
 
@@ -113,3 +123,107 @@ resource "aws_autoscaling_group" "ec2" {
     
     depends_on = [ aws_iam_role.ec2, aws_launch_configuration.ec2 ]
 }
+
+resource "aws_ecs_capacity_provider" "ec2" {
+  count = var.create && var.cluster_type == "EC2" ? length(var.capacity_provider) : 0
+
+  name  = lookup(var.capacity_provider[count.index], "name_capacity_provider", null)
+  
+  dynamic "auto_scaling_group_provider" {
+    for_each = lookup(var.capacity_provider[count.index], "auto_scaling_group_provider", null)
+    content {
+      auto_scaling_group_arn          = aws_autoscaling_group.ec2.0.arn
+      managed_termination_protection  = lookup(auto_scaling_group_provider.value, "managed_termination_protection", null)
+
+      dynamic "managed_scaling" {
+        for_each = lookup(auto_scaling_group_provider.value, "managed_scaling", null)
+        content {
+          maximum_scaling_step_size = lookup(managed_scaling.value, "maximum_scaling_step_size", null)
+          minimum_scaling_step_size = lookup(managed_scaling.value, "minimum_scaling_step_size", null)
+          status                    = lookup(managed_scaling.value, "status", null)
+          target_capacity           = lookup(managed_scaling.value, "target_capacity", null)
+        }
+      }
+    }
+  }
+
+  depends_on = [ aws_iam_role.ec2, aws_launch_configuration.ec2, aws_autoscaling_group.ec2 ]
+}
+
+
+resource "aws_autoscaling_policy" "ec2_up" {
+    count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
+
+    autoscaling_group_name  = aws_autoscaling_group.ec2.0.name
+    name                = lookup(var.cluster_resources[count.index], "asg_up_policy_name", null)
+    scaling_adjustment  = lookup(var.cluster_resources[count.index], "asg_up_policy_scaling_adjustment", null)
+    adjustment_type     = lookup(var.cluster_resources[count.index], "asg_up_policy_adjustment_type", null)
+    cooldown            = lookup(var.cluster_resources[count.index], "asg_up_policy_cooldown", null)
+    policy_type         = lookup(var.cluster_resources[count.index], "asg_up_policy_type", null)
+}
+
+
+resource "aws_cloudwatch_metric_alarm" "ec2_up" {
+    count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
+
+    alarm_name          = lookup(var.cluster_resources[count.index], "asg_up_alarm_name", null)
+    alarm_description   = lookup(var.cluster_resources[count.index], "asg_up_alarm_description", null)
+    comparison_operator = lookup(var.cluster_resources[count.index], "asg_up_comparison_operator", null)
+    evaluation_periods  = lookup(var.cluster_resources[count.index], "asg_up_evaluation_periods", null)
+    metric_name         = lookup(var.cluster_resources[count.index], "asg_up_metric_name", null)
+    namespace           = lookup(var.cluster_resources[count.index], "asg_up_namespace", null)
+    period              = lookup(var.cluster_resources[count.index], "asg_up_period", null)
+    statistic           = lookup(var.cluster_resources[count.index], "asg_up_statistic", null)
+    threshold           = lookup(var.cluster_resources[count.index], "asg_up_threshold", null)
+    dimensions          = lookup(var.cluster_resources[count.index], "asg_up_dimensions", null)
+    #dimensions = {
+    #    "ClusterName" = var.cluster_name
+    #    "CapacityProviderName" =  var.
+    #}
+    actions_enabled     = lookup(var.cluster_resources[count.index], "asg_up_actions_enabled", null)
+    alarm_actions       = [ aws_autoscaling_policy.ec2_up.0.arn ]
+}
+
+resource "aws_autoscaling_policy" "ec2_down" {
+    count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
+
+    autoscaling_group_name  = aws_autoscaling_group.ec2.0.name
+    name                = lookup(var.cluster_resources[count.index], "asg_down_policy_name", null)
+    scaling_adjustment  = lookup(var.cluster_resources[count.index], "asg_down_policy_scaling_adjustment", null)
+    adjustment_type     = lookup(var.cluster_resources[count.index], "asg_down_policy_adjustment_type", null)
+    cooldown            = lookup(var.cluster_resources[count.index], "asg_down_policy_cooldown", null)
+    policy_type         = lookup(var.cluster_resources[count.index], "asg_down_policy_type", null)
+}
+
+
+resource "aws_cloudwatch_metric_alarm" "ec2_down" {
+    count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
+
+    alarm_name          = lookup(var.cluster_resources[count.index], "asg_down_alarm_name", null)
+    alarm_description   = lookup(var.cluster_resources[count.index], "asg_down_alarm_description", null)
+    comparison_operator = lookup(var.cluster_resources[count.index], "asg_down_comparison_operator", null)
+    evaluation_periods  = lookup(var.cluster_resources[count.index], "asg_down_evaluation_periods", null)
+    metric_name         = lookup(var.cluster_resources[count.index], "asg_down_metric_name", null)
+    namespace           = lookup(var.cluster_resources[count.index], "asg_down_namespace", null)
+    period              = lookup(var.cluster_resources[count.index], "asg_down_period", null)
+    statistic           = lookup(var.cluster_resources[count.index], "asg_down_statistic", null)
+    threshold           = lookup(var.cluster_resources[count.index], "asg_down_threshold", null)
+    dimensions          = lookup(var.cluster_resources[count.index], "asg_down_dimensions", null)
+    #dimensions = {
+    #    "ClusterName" = var.cluster_name
+    #    "CapacityProviderName" =  var.
+    #}
+    actions_enabled     = lookup(var.cluster_resources[count.index], "asg_down_actions_enabled", null)
+    alarm_actions       = [ aws_autoscaling_policy.ec2_down.0.arn ]
+}
+
+#resource "aws_autoscaling_schedule" "ec2" {
+#    count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
+#
+#    autoscaling_group_name = aws_autoscaling_group.ec2.0.name
+#    scheduled_action_name  = var.cluster_resources[count.index]["asg_scheduled_action_name"]
+#    min_size               = var.cluster_resources[count.index]["asg_scheduled_min_size"]
+#    max_size               = var.cluster_resources[count.index]["asg_scheduled_max_size"]
+#    desired_capacity       = var.cluster_resources[count.index]["asg_scheduled_desired_capacity"]
+#    recurrence             = var.cluster_resources[count.index]["asg_scheduled_recurrence"]
+#}

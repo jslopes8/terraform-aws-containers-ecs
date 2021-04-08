@@ -7,14 +7,14 @@ resource "aws_ecs_cluster" "main" {
     count = var.create ? 1 : 0
 
     name = var.cluster_name
-    capacity_providers  = var.capacity_providers
+    capacity_providers  = var.ecs_capacity_providers
 
     dynamic "default_capacity_provider_strategy" {
         for_each = var.capacity_provider_strategy
         content {
-            capacity_provider   = var.capacity_provider_strategy.value.capacity_provider
-            weight              = lookup(var.capacity_provider_strategy.value, "weight", null)
-            base                = lookup(var.capacity_provider_strategy.value, "base", null)
+            capacity_provider   = default_capacity_provider_strategy.value.capacity_provider
+            weight              = lookup(default_capacity_provider_strategy.value, "weight", null)
+            base                = lookup(default_capacity_provider_strategy.value, "base", null)
         }
     }
 
@@ -27,4 +27,5 @@ resource "aws_ecs_cluster" "main" {
     }
 
     tags = var.default_tags
+
 }

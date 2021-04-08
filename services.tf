@@ -16,7 +16,7 @@ resource "time_sleep" "wait_for_ec2_instances" {
 resource "aws_ecs_service" "main" {
     depends_on = [ 
         aws_iam_role.main, aws_ecs_task_definition.main, 
-        aws_lb.main, aws_lb_target_group.main
+        aws_lb.main, aws_lb_target_group.main, aws_lb.lb_https, aws_lb_target_group.lb_https
     ]
 
     count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service) : 0
@@ -69,7 +69,8 @@ resource "aws_ecs_service" "main" {
     dynamic "load_balancer" {
         for_each = length(keys(lookup(var.service[count.index], "load_balancer", {}))) == 0 ? [] : [lookup(var.service[count.index], "load_balancer", {})]
         content {
-            target_group_arn    = aws_lb_target_group.main.0.arn
+            #target_group_arn    = aws_lb_target_group.main.0.arn
+            target_group_arn    = length(aws_lb_target_group.main) > 0 ? aws_lb_target_group.main.0.arn : aws_lb_target_group.lb_https.0.arn
             container_name      = lookup(load_balancer.value, "container_name", null)
             container_port      = lookup(load_balancer.value, "container_port", null)
         }
@@ -159,10 +160,10 @@ resource "aws_lb_listener" "listerner" {
 }
 
 resource "aws_lb_listener_rule" "listener_rule" {
-    count = var.create  && var.priority != "null" && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" &&  var.priority != "null" ? length(var.service_load_balancing) : 0
-
+    count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service_load_balancing) : 0
+    
     listener_arn    = aws_lb_listener.listerner.0.arn
-    priority        = lookup(var.service_load_balancing[count.index], "priority", var.priority)
+    priority        = lookup(var.service_load_balancing[count.index], "priority_rule", null)
 
     dynamic "action" {
         for_each = length(keys(lookup(var.service_load_balancing[count.index], "redirect_rule", {}))) == 0 ? [] : [lookup(var.service_load_balancing[count.index], "redirect_rule", {})]
@@ -217,6 +218,131 @@ resource "aws_lb_target_group" "main" {
 
     dynamic "health_check" {
         for_each = length(keys(lookup(var.service_load_balancing[count.index], "health_check", {}))) == 0 ? [] : [lookup(var.service_load_balancing[count.index], "health_check", {})]
+        content {
+            healthy_threshold   = lookup(health_check.value, "healthy_threshold", null)
+            unhealthy_threshold = lookup(health_check.value, "unhealthy_threshold", null)
+            timeout             = lookup(health_check.value, "timeout", null)
+            interval            = lookup(health_check.value, "interval", null)
+            path                = lookup(health_check.value, "path", null)
+            port                = lookup(health_check.value, "health_check_port", "traffic-port")
+            matcher             = lookup(health_check.value, "success_codes", null)
+        }
+    }
+
+    tags = var.default_tags
+}
+
+
+#
+# ECS Service - Service Application Load Balance HTTPS
+#
+
+resource "aws_lb" "lb_https" {
+    count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service_load_balancing_https) : 0
+
+    name               = lookup(var.service_load_balancing_https[count.index], "name", null)
+    internal           = lookup(var.service_load_balancing_https[count.index], "internal", "false")
+    load_balancer_type = lookup(var.service_load_balancing_https[count.index], "load_balancer_type", "application")
+    security_groups    = lookup(var.service_load_balancing_https[count.index], "security_groups", null)
+    subnets            = lookup(var.service_load_balancing_https[count.index], "subnets", null)
+
+    tags = var.default_tags
+
+    depends_on = [ aws_lb_target_group.lb_https  ]
+}
+
+
+resource "aws_lb_listener" "lb_https" {
+    count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service_load_balancing_https) : 0
+
+    load_balancer_arn   = aws_lb.lb_https.0.arn
+    port                = lookup(var.service_load_balancing_https[count.index], "port", null)
+    protocol            = lookup(var.service_load_balancing_https[count.index], "protocol", null)
+    certificate_arn     = lookup(var.service_load_balancing_https[count.index], "certificate_arn", null)
+    ssl_policy          = lookup(var.service_load_balancing_https[count.index], "ssl_policy", null)
+
+    default_action {
+        type             = "forward"
+        target_group_arn = aws_lb_target_group.lb_https.0.arn
+    }
+
+    depends_on = [ time_sleep.wait_for_ec2_instances, aws_lb_target_group.lb_https     ]
+}
+
+resource "aws_lb_listener" "lb_http" {
+    count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service_load_balancing_https) : 0
+
+    load_balancer_arn   = aws_lb.lb_https.0.arn
+    port                = lookup(var.service_load_balancing_https[count.index], "target_port", null)
+    protocol            = lookup(var.service_load_balancing_https[count.index], "target_protocol", null)
+
+    default_action {
+        type             = "forward"
+        target_group_arn = aws_lb_target_group.lb_https.0.arn
+    }
+
+    depends_on = [ time_sleep.wait_for_ec2_instances, aws_lb_target_group.lb_https     ]
+}
+
+resource "aws_lb_listener_rule" "lb_https" {
+    count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service_load_balancing_https) : 0
+    
+    listener_arn    = aws_lb_listener.lb_http.0.arn
+    priority        = lookup(var.service_load_balancing_https[count.index], "priority_rule", null)
+
+    dynamic "action" {
+        for_each = length(keys(lookup(var.service_load_balancing_https[count.index], "redirect_rule", {}))) == 0 ? [] : [lookup(var.service_load_balancing_https[count.index], "redirect_rule", {})]
+        content {
+            type    = lookup(action.value, "type", null)
+
+            dynamic "redirect" {
+                for_each = length(keys(lookup(action.value, "redirect", {}))) == 0 ? [] : [lookup(action.value, "redirect", {})]
+                content {
+                    port        = lookup(redirect.value, "type", "443")
+                    protocol    = lookup(redirect.value, "protocol", "HTTPS")
+                    status_code = lookup(redirect.value, "status_code", "HTTP_301")
+                }
+            }
+
+        }
+    }
+
+    dynamic "action" {
+        for_each = length(keys(lookup(var.service_load_balancing_https[count.index], "forward_rule", {}))) == 0 ? [] : [lookup(var.service_load_balancing_https[count.index], "forward_rule", {})]
+        content {
+            type                = lookup(action.value, "type", null)
+            target_group_arn    = aws_lb_target_group.lb_https.0.arn
+
+        }
+    }
+
+    dynamic "condition" {
+        for_each = length(keys(lookup(var.service_load_balancing_https[count.index], "condition", {}))) == 0 ? [] : [lookup(var.service_load_balancing_https[count.index], "condition", {})]
+        content {
+            dynamic "path_pattern" {
+                for_each = length(keys(lookup(condition.value, "path_pattern", {}))) == 0 ? [] : [lookup(condition.value, "path_pattern", {})]
+                content {
+                    values = lookup(path_pattern.value, "values", null)
+                }
+            }
+        }
+    }
+
+    depends_on = [ aws_lb_target_group.lb_https, aws_lb.lb_https ]
+}
+
+resource "aws_lb_target_group" "lb_https" {
+    count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service_load_balancing_https) : 0
+
+    name            = lookup(var.service_load_balancing_https[count.index], "name", null)
+    port            = lookup(var.service_load_balancing_https[count.index], "target_port", null)
+    protocol        = lookup(var.service_load_balancing_https[count.index], "target_protocol", null)
+    target_type     = lookup(var.service_load_balancing_https[count.index], "target_type", null)
+    vpc_id          = lookup(var.service_load_balancing_https[count.index], "vpc_id", null)
+
+
+    dynamic "health_check" {
+        for_each = length(keys(lookup(var.service_load_balancing_https[count.index], "health_check", {}))) == 0 ? [] : [lookup(var.service_load_balancing_https[count.index], "health_check", {})]
         content {
             healthy_threshold   = lookup(health_check.value, "healthy_threshold", null)
             unhealthy_threshold = lookup(health_check.value, "unhealthy_threshold", null)
