@@ -144,6 +144,34 @@ module "ecs" {
 }
 ```
 
+Exemplo de uso: Criando um Cluster EC2 com Capacity Providers
+```hcl
+module "ecs" {
+    source = "git::https://github.com/jslopes8/terraform-aws-containers-ecs.git?ref=v3.0"
+
+    cluster_name = local.cluster_name
+    cluster_type = "EC2"
+
+    ecs_capacity_providers = ["CAS-NameCapacityProviders"]
+    capacity_provider = [{
+      name_capacity_provider = "CAS-NameCapacityProviders"
+
+      auto_scaling_group_provider = [{
+        managed_termination_protection = "ENABLED"
+
+        managed_scaling = [{
+          maximum_scaling_step_size = "100000"
+          minimum_scaling_step_size = "10"
+          status                    = "ENABLED"
+          target_capacity           = "100"
+          instance_warmup_period    = "300"
+        }]
+      }]
+    }]
+
+ - - - omitindo saída - - -
+}
+```
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Variables Inputs
@@ -155,3 +183,6 @@ module "ecs" {
 | capacity_providers | Lista de um ou mais provedores de capacidade para associar ao cluster. Valores validos, FARGATE e FARGATE_SPOT. | `no` | `list` | `[ ]` |
 | default_capacity_provider_strategy | Capacity Provider Strategy para ser usado por default para o cluster. Segue detalhes abaixo.  | `no` | `list` | `[ ]` |
 | cluster_resources | Construção da EC2 Instance para o EC2 Cluster. Obrigatorio quando o valor de `cluster_type` for EC2. | `no` | `list` | `[ ]` |
+| ecs_capacity_providers | | | | |
+| capacity_provider | | | | |
+|  
