@@ -6,7 +6,7 @@
 Exemplo de uso: Criando um completo Cluster ECS Fargate
 ```hcl
 module "cluster_ecs" {
-    source = "git@github.com:jslopes8/terraform-aws-containers-ecs.git?ref=v2.3.2"
+    source = "git@github.com:jslopes8/terraform-aws-containers-ecs.git?ref=v2.3.3"
 
     cluster_name = local.cluster_name
     cluster_type = "FARGATE"
@@ -110,7 +110,7 @@ module "cluster_ecs" {
 Exemplo de uso: Criando um Cluster EC2 com EC2 Instance
 ```hcl
 module "ecs" {
-    source = "git::https://github.com/jslopes8/terraform-aws-containers-ecs.git?ref=v3.0"
+    source = "git::https://github.com/jslopes8/terraform-aws-containers-ecs.git?ref=v3.3.3"
 
     cluster_name = local.cluster_name
     cluster_type = "EC2"
@@ -183,6 +183,10 @@ module "ecs" {
 | capacity_providers | Lista de um ou mais provedores de capacidade para associar ao cluster. Valores validos, FARGATE e FARGATE_SPOT. | `no` | `list` | `[ ]` |
 | default_capacity_provider_strategy | Capacity Provider Strategy para ser usado por default para o cluster. Segue detalhes abaixo.  | `no` | `list` | `[ ]` |
 | cluster_resources | Construção da EC2 Instance para o EC2 Cluster. Obrigatorio quando o valor de `cluster_type` for EC2. | `no` | `list` | `[ ]` |
-| ecs_capacity_providers | | | | |
-| capacity_provider | | | | |
-|  
+
+<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+## Variables Inputs
+| Name | Description | 
+| ---- | ----------- |
+| lb_dns | DNS name do Load Balance. |
+| cluster_name | O nome do cluster ECS criado. |

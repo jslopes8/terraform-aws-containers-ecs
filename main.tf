@@ -28,4 +28,5 @@ resource "aws_ecs_cluster" "main" {
 
     tags = var.default_tags
 
+    depends_on = [ aws_ecs_capacity_provider.ec2 ]
 }

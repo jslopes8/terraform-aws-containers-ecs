@@ -16,7 +16,8 @@ resource "time_sleep" "wait_for_ec2_instances" {
 resource "aws_ecs_service" "main" {
     depends_on = [ 
         aws_iam_role.main, aws_ecs_task_definition.main, 
-        aws_lb.main, aws_lb_target_group.main, aws_lb.lb_https, aws_lb_target_group.lb_https
+        aws_lb.main, aws_lb_target_group.main, aws_lb.lb_https, aws_lb_target_group.lb_https,
+        aws_ecs_cluster.main
     ]
 
     count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service) : 0
@@ -157,53 +158,6 @@ resource "aws_lb_listener" "listerner" {
     }
 
     depends_on = [ time_sleep.wait_for_ec2_instances, aws_lb_target_group.main     ]
-}
-
-resource "aws_lb_listener_rule" "listener_rule" {
-    count = var.create && var.cluster_type == "FARGATE" || var.cluster_type == "EC2" ? length(var.service_load_balancing) : 0
-    
-    listener_arn    = aws_lb_listener.listerner.0.arn
-    priority        = lookup(var.service_load_balancing[count.index], "priority_rule", null)
-
-    dynamic "action" {
-        for_each = length(keys(lookup(var.service_load_balancing[count.index], "redirect_rule", {}))) == 0 ? [] : [lookup(var.service_load_balancing[count.index], "redirect_rule", {})]
-        content {
-            type    = lookup(action.value, "type", null)
-
-            dynamic "redirect" {
-                for_each = length(keys(lookup(action.value, "redirect", {}))) == 0 ? [] : [lookup(action.value, "redirect", {})]
-                content {
-                    port        = lookup(redirect.value, "type", "443")
-                    protocol    = lookup(redirect.value, "protocol", "HTTPS")
-                    status_code = lookup(redirect.value, "status_code", "HTTP_301")
-                }
-            }
-
-        }
-    }
-
-    dynamic "action" {
-        for_each = length(keys(lookup(var.service_load_balancing[count.index], "forward_rule", {}))) == 0 ? [] : [lookup(var.service_load_balancing[count.index], "forward_rule", {})]
-        content {
-            type                = lookup(action.value, "type", null)
-            target_group_arn    = aws_lb_target_group.main.0.arn
-
-        }
-    }
-
-    dynamic "condition" {
-        for_each = length(keys(lookup(var.service_load_balancing[count.index], "condition", {}))) == 0 ? [] : [lookup(var.service_load_balancing[count.index], "condition", {})]
-        content {
-            dynamic "path_pattern" {
-                for_each = length(keys(lookup(condition.value, "path_pattern", {}))) == 0 ? [] : [lookup(condition.value, "path_pattern", {})]
-                content {
-                    values = lookup(path_pattern.value, "values", null)
-                }
-            }
-        }
-    }
-
-    depends_on = [ aws_lb_target_group.main, aws_lb.main ]
 }
 
 resource "aws_lb_target_group" "main" {

@@ -56,7 +56,7 @@ data "template_file" "bootstrap" {
 resource "aws_launch_configuration" "ec2" {
     count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
 
-    name_prefix                 = "lc-${var.cluster_name}"
+    name_prefix                 = "LC-${upper(var.cluster_name)}-ECS-WORKER-"
     image_id                    = var.cluster_resources[count.index]["image_id"]
     instance_type               = var.cluster_resources[count.index]["instance_type"]
     iam_instance_profile        = aws_iam_instance_profile.ec2.0.name
@@ -92,7 +92,7 @@ resource "aws_launch_configuration" "ec2" {
 resource "aws_autoscaling_group" "ec2" {
     count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
 
-    name                        = "${var.cluster_name}-AS"
+    name                        = "${upper(var.cluster_name)}-AS"
     vpc_zone_identifier         = lookup(var.cluster_resources[count.index], "vpc_zone_identifier", null)
     launch_configuration        = aws_launch_configuration.ec2.0.name
     min_size                    = lookup(var.cluster_resources[count.index], "min_size", "1")
@@ -105,7 +105,7 @@ resource "aws_autoscaling_group" "ec2" {
     tags    = concat([
          {
             "key"                   = "Name"
-            "value"                 = "${var.cluster_name}-AS"
+            "value"                 = "${var.cluster_name}-worker-as"
             "propagate_at_launch"   = true
          },
          {
@@ -121,7 +121,7 @@ resource "aws_autoscaling_group" "ec2" {
         create_before_destroy = true
     }
     
-    depends_on = [ aws_iam_role.ec2, aws_launch_configuration.ec2 ]
+    depends_on = [ aws_launch_configuration.ec2 ]
 }
 
 resource "aws_ecs_capacity_provider" "ec2" {
@@ -147,7 +147,7 @@ resource "aws_ecs_capacity_provider" "ec2" {
     }
   }
 
-  depends_on = [ aws_iam_role.ec2, aws_launch_configuration.ec2, aws_autoscaling_group.ec2 ]
+  depends_on = [ aws_autoscaling_group.ec2 ]
 }
 
 
@@ -164,7 +164,8 @@ resource "aws_autoscaling_policy" "ec2_up" {
 
 
 resource "aws_cloudwatch_metric_alarm" "ec2_up" {
-    count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
+    count = var.create && var.cluster_type == "EC2" ? length(var.capacity_provider) : 0
+    #count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
 
     alarm_name          = lookup(var.cluster_resources[count.index], "asg_up_alarm_name", null)
     alarm_description   = lookup(var.cluster_resources[count.index], "asg_up_alarm_description", null)
@@ -176,16 +177,13 @@ resource "aws_cloudwatch_metric_alarm" "ec2_up" {
     statistic           = lookup(var.cluster_resources[count.index], "asg_up_statistic", null)
     threshold           = lookup(var.cluster_resources[count.index], "asg_up_threshold", null)
     dimensions          = lookup(var.cluster_resources[count.index], "asg_up_dimensions", null)
-    #dimensions = {
-    #    "ClusterName" = var.cluster_name
-    #    "CapacityProviderName" =  var.
-    #}
     actions_enabled     = lookup(var.cluster_resources[count.index], "asg_up_actions_enabled", null)
     alarm_actions       = [ aws_autoscaling_policy.ec2_up.0.arn ]
 }
 
 resource "aws_autoscaling_policy" "ec2_down" {
-    count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
+    count = var.create && var.cluster_type == "EC2" ? length(var.capacity_provider) : 0
+    #count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
 
     autoscaling_group_name  = aws_autoscaling_group.ec2.0.name
     name                = lookup(var.cluster_resources[count.index], "asg_down_policy_name", null)
@@ -197,7 +195,8 @@ resource "aws_autoscaling_policy" "ec2_down" {
 
 
 resource "aws_cloudwatch_metric_alarm" "ec2_down" {
-    count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
+    count = var.create && var.cluster_type == "EC2" ? length(var.capacity_provider) : 0
+    #count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
 
     alarm_name          = lookup(var.cluster_resources[count.index], "asg_down_alarm_name", null)
     alarm_description   = lookup(var.cluster_resources[count.index], "asg_down_alarm_description", null)
@@ -209,10 +208,6 @@ resource "aws_cloudwatch_metric_alarm" "ec2_down" {
     statistic           = lookup(var.cluster_resources[count.index], "asg_down_statistic", null)
     threshold           = lookup(var.cluster_resources[count.index], "asg_down_threshold", null)
     dimensions          = lookup(var.cluster_resources[count.index], "asg_down_dimensions", null)
-    #dimensions = {
-    #    "ClusterName" = var.cluster_name
-    #    "CapacityProviderName" =  var.
-    #}
     actions_enabled     = lookup(var.cluster_resources[count.index], "asg_down_actions_enabled", null)
     alarm_actions       = [ aws_autoscaling_policy.ec2_down.0.arn ]
 }
