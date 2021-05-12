@@ -42,6 +42,15 @@ resource "aws_ecs_service" "main" {
         }
     }
 
+    dynamic "capacity_provider_strategy" {
+        for_each = lookup(var.service[count.index], "capacity_provider_strategy", var.capacity_provider_strategy)
+        content {
+            capacity_provider   = lookup(capacity_provider_strategy.value, "capacity_provider", null)
+            base                = lookup(capacity_provider_strategy.value, "base", null)
+            weight              = lookup(capacity_provider_strategy.value, "weight", null)
+        }
+    }
+
     dynamic "ordered_placement_strategy" {
         for_each = lookup(var.service[count.index], "placement_strategy", var.placement_strategy)
         content {

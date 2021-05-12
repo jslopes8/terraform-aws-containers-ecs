@@ -53,10 +53,26 @@ data "template_file" "bootstrap" {
     }
 }
 
+#data "aws_ami" "main" {
+#    count = var.create ? length(var.choose_ami) : 0
+#
+#    most_recent = lookup(var.choose_ami[count.index], "most_recent", null)
+#    owners      = var.choose_ami[count.index]["owners"]
+#
+#    dynamic "filter" {
+#        for_each = var.choose_ami[count.index]["filter"]
+#        content {
+#            name    = lookup(filter.value, "name", null)
+#            values  = lookup(filter.value, "values", null)
+#        }
+#    }
+#}
+
 resource "aws_launch_configuration" "ec2" {
     count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
 
     name_prefix                 = "LC-${upper(var.cluster_name)}-ECS-WORKER-"
+    #image_id                    = length(data.aws_ami.main) > 0 ? data.aws_ami.main.0.id : var.cluster_resources[count.index]["image_id"]
     image_id                    = var.cluster_resources[count.index]["image_id"]
     instance_type               = var.cluster_resources[count.index]["instance_type"]
     iam_instance_profile        = aws_iam_instance_profile.ec2.0.name
@@ -142,6 +158,7 @@ resource "aws_ecs_capacity_provider" "ec2" {
           minimum_scaling_step_size = lookup(managed_scaling.value, "minimum_scaling_step_size", null)
           status                    = lookup(managed_scaling.value, "status", null)
           target_capacity           = lookup(managed_scaling.value, "target_capacity", null)
+          instance_warmup_period    = lookup(managed_scaling.value, "instance_warmup_period", null)
         }
       }
     }
@@ -152,7 +169,7 @@ resource "aws_ecs_capacity_provider" "ec2" {
 
 
 resource "aws_autoscaling_policy" "ec2_up" {
-    count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
+    count = var.create && var.cluster_type == "EC2" && var.autoscaling_policy ? 1 : 0
 
     autoscaling_group_name  = aws_autoscaling_group.ec2.0.name
     name                = lookup(var.cluster_resources[count.index], "asg_up_policy_name", null)
@@ -164,7 +181,7 @@ resource "aws_autoscaling_policy" "ec2_up" {
 
 
 resource "aws_cloudwatch_metric_alarm" "ec2_up" {
-    count = var.create && var.cluster_type == "EC2" ? length(var.capacity_provider) : 0
+    count = var.create && var.cluster_type == "EC2" && var.autoscaling_policy ? 1 : 0
     #count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
 
     alarm_name          = lookup(var.cluster_resources[count.index], "asg_up_alarm_name", null)
@@ -182,8 +199,8 @@ resource "aws_cloudwatch_metric_alarm" "ec2_up" {
 }
 
 resource "aws_autoscaling_policy" "ec2_down" {
-    count = var.create && var.cluster_type == "EC2" ? length(var.capacity_provider) : 0
-    #count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
+    #count = var.create && var.cluster_type == "EC2" ? length(var.) : 0
+    count = var.create && var.cluster_type == "EC2" && var.autoscaling_policy ? 1 : 0
 
     autoscaling_group_name  = aws_autoscaling_group.ec2.0.name
     name                = lookup(var.cluster_resources[count.index], "asg_down_policy_name", null)
@@ -195,7 +212,7 @@ resource "aws_autoscaling_policy" "ec2_down" {
 
 
 resource "aws_cloudwatch_metric_alarm" "ec2_down" {
-    count = var.create && var.cluster_type == "EC2" ? length(var.capacity_provider) : 0
+    count = var.create && var.cluster_type == "EC2" && var.autoscaling_policy ? 1 : 0
     #count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
 
     alarm_name          = lookup(var.cluster_resources[count.index], "asg_down_alarm_name", null)

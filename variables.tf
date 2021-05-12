@@ -18,6 +18,10 @@ variable "capacity_provider_strategy" {
     type = any
     default = []
 }
+variable "default_capacity_provider" {
+    type = any
+    default = []
+}
 variable "setting" {
     type = any
     default = []
@@ -81,4 +85,12 @@ variable "container_definitions" {
 variable "capacity_provider" {
     type = any
     default = []
+}
+variable "autoscaling_policy" {
+  type = bool
+  default = false
+}
+variable "choose_ami" {
+  type = any
+  defualt = []
 }
