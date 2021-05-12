@@ -115,8 +115,7 @@ resource "aws_autoscaling_group" "ec2" {
             "value"                 = ""
             "propagate_at_launch"   = true
           }
-        ],
-        var.default_tags,
+        ]
     )
 
     lifecycle {
