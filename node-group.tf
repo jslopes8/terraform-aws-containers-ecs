@@ -53,26 +53,11 @@ data "template_file" "bootstrap" {
     }
 }
 
-#data "aws_ami" "main" {
-#    count = var.create ? length(var.choose_ami) : 0
-#
-#    most_recent = lookup(var.choose_ami[count.index], "most_recent", null)
-#    owners      = var.choose_ami[count.index]["owners"]
-#
-#    dynamic "filter" {
-#        for_each = var.choose_ami[count.index]["filter"]
-#        content {
-#            name    = lookup(filter.value, "name", null)
-#            values  = lookup(filter.value, "values", null)
-#        }
-#    }
-#}
 
 resource "aws_launch_configuration" "ec2" {
     count = var.create && var.cluster_type == "EC2" ? length(var.cluster_resources) : 0
 
     name_prefix                 = "LC-${upper(var.cluster_name)}-ECS-WORKER-"
-    #image_id                    = length(data.aws_ami.main) > 0 ? data.aws_ami.main.0.id : var.cluster_resources[count.index]["image_id"]
     image_id                    = var.cluster_resources[count.index]["image_id"]
     instance_type               = var.cluster_resources[count.index]["instance_type"]
     iam_instance_profile        = aws_iam_instance_profile.ec2.0.name
@@ -117,6 +102,7 @@ resource "aws_autoscaling_group" "ec2" {
     health_check_type           = lookup(var.cluster_resources[count.index], "health_check_type", null)
     health_check_grace_period   = lookup(var.cluster_resources[count.index], "health_check_grace_period", "300")
     default_cooldown            = lookup(var.cluster_resources[count.index], "default_cooldown", "300")
+    protect_from_scale_in       = lookup(var.cluster_resources[count.index], "scale_in_protection", )
 
     tags    = concat([
          {
@@ -128,9 +114,9 @@ resource "aws_autoscaling_group" "ec2" {
             "key"                   = "AmazonECSManaged"
             "value"                 = ""
             "propagate_at_launch"   = true
-
           }
-        ]
+        ],
+        var.default_tags,
     )
 
     lifecycle {
