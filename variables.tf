@@ -90,7 +90,3 @@ variable "autoscaling_policy" {
   type = bool
   default = false
 }
-variable "choose_ami" {
-  type = any
-  defualt = []
-}
