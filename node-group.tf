@@ -74,7 +74,8 @@ resource "aws_launch_configuration" "ec2" {
         content {
             volume_type             = lookup(root_block_device.value, "volume_type", null)
             volume_size             = lookup(root_block_device.value, "volume_size", null)
-            delete_on_termination   = lookup(root_block_device.value, "delete_on_termination", null) 
+            delete_on_termination   = lookup(root_block_device.value, "delete_on_termination", null)
+            encrypted               = lookup(root_block_device.value, "encrypted", null)
         }
     }
 
